@@ -1,0 +1,134 @@
+@startuml
+title Medical Clinic Container Diagram
+
+top to bottom direction
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Container.puml
+
+Person(Admin, "Administrator", "Сотрудник ресепшена")
+Person(Bookkeeper, "Bookkeeper", "Бухгалтер")
+Person(WarehouseKeeper, "Warehouse Keeper", "Сотрудник склада")
+Person(Cassier, "Cassier", "Кассир")
+Person(Patient, "Patient", "Пациент")
+Person(Doctor, "Doctor", "Медицинский специалист")
+Person(Analyst, "Analyst", "BI/ML-аналитик")
+
+System_Ext(Laboratory, "Laboratory", "Лаборатория анализов")
+
+System_Ext(ExternalPaymentSystem, "Внешняя платежная система", "(REST API) Система обработки платежей")
+
+System_Boundary(MedicalClinic, "Medical Clinic System") {
+    ' Клиентские приложения
+    Container(ClientPortal, "Client Portal", "Vue.js", "Веб-приложение для клиентов")
+    Container(InternalPortal, "Internal Portal", "Vue.js", "Веб-приложение для сотрудников")
+    Container(CRM, "CRM", "Vue.js", "CRM для сбора данных клиентов")
+    Container(AnalyticsNotebook, "Analytics Notebook", "Jupyter/Python", "Рабочее место аналитика для отчётов и ML")
+
+    ' Сервисы
+    Container(LabIntegrationService, "Laboratory Integration Service", "Golang", "Сервис интеграции с лабораторией анализов")
+    ContainerDb(LabIntegrationDatabase, "Laboratory Integration Database", "PostgreSQL", "БД интеграции с лабораторией анализов")
+
+    Container(MedicalDataService, "Medical Data Service", "Golang", "Сервис медицинских данных")
+    ContainerDb(MedicalDataDatabase, "Medical Data Database", "PostgreSQL", "БД медицинских данных")
+
+    Container(UserService, "User Service", "Golang", "Сервис пользователей и контрактов")
+    ContainerDb(UserDatabase, "User Database", "PostgreSQL", "БД пользователей и контрактов")
+    
+    Container(ScheduleService, "Schedule Service", "Golang", "Сервис расписаний приема пациентов")
+    ContainerDb(ScheduleDatabase, "Schedule Database", "PostgreSQL", "БД расписаний приема пациентов")
+
+    Container(PaymentService, "Payment Service", "Golang", "Платежный шлюз")
+    ContainerDb(PaymentDatabase, "Payment Database", "PostgreSQL", "БД Платежного шлюза")
+
+    Container(LogsService, "Logs Service", "Golang", "Сервис логов и аудита")
+    ContainerDb(LogsDatabase, "Logs Database", "PostgreSQL", "БД логов и аудита")
+
+    ContainerDb(CrmDatabase, "Crm Database", "PostgreSQL", "БД CRM")
+
+    Container(PseudonymizationService, "Pseudonymization Service", "Golang", "Сервис псевдонимизации данных для аналитики")
+    ContainerDb(PseudonymizationDatabase, "Pseudonymization Database", "PostgreSQL", "БД соответствия токенов")
+    
+    ContainerDb(DataLake, "Data Lake", "Azure Data Lake", "Озеро данных")
+    ContainerDb(DataWarehouse, "Data Warehouse", "ClickHouse", "Витрины данных")
+
+    ' Готовые решения
+    Container(1CAccounting, "1C Бухгалтерия предприятия", "1C", "Бухгалтерская система учёта. Работает в клиент-серверном режиме")
+    Container(1CInventory, "1C Торговля и Склад", "1C", "Складская система учёта. Работает в клиент-серверном режиме")
+
+    Container(1CAccountingDb, "БД 1C Бухгалтерия", "PostgreSQL", "БД бухгалтерской системы учёта")
+    Container(1CInventoryDb, "БД 1C Торговля и Склад", "PostgreSQL", "БД складской системы учёта")
+
+    Container(ExchangeMailService, "Exchange Mail Service", "Microsoft Exchange", "Почтовый сервис внутренней почты организации")
+    
+    Container(KKM, "Контрольно-кассовая машина", "KKM", "Контрольно-кассовая машина")
+    Container(MicrosoftPurview, "Microsoft Purview", "Microsoft Purview", "Классификация, тегирование данных")
+    Container(Keycloak, "Keycloak", "Keycloak", "Аутентификация и авторизация")
+}
+
+' Кто что использует
+Rel(Patient, ClientPortal, "Использует веб-приложение для клиентов")
+Rel(Admin, InternalPortal, "Использует веб-приложение для сотрудников")
+Rel(Bookkeeper, 1CAccounting, "Использует бухгалтерскую систему учёта")
+Rel(WarehouseKeeper, 1CInventory, "Использует складскую систему учёта")
+Rel(Cassier, KKM, "Использует контрольно-кассовую машину")
+Rel(Admin, CRM, "Использует CRM для работы с данными клиентов")
+Rel(Doctor, InternalPortal, "Использует веб-приложение для сотрудников")
+Rel(Analyst, AnalyticsNotebook, "Использует Jupyter для отчётов и ML")
+
+' Внешнее - внутреннее
+Rel(PaymentService, ExternalPaymentSystem, "Передаёт запросы на оплату во внешнюю платежную систему [mTLS]")
+Rel(LabIntegrationService, Laboratory, "Интегрируется с лабораторией анализов [mTLS]")
+
+' Keycloak аутентификация и авторизация
+Rel(1CAccounting, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+Rel(1CInventory, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+Rel(ExchangeMailService, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+Rel(ClientPortal, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+Rel(InternalPortal, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+Rel(CRM, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+Rel(AnalyticsNotebook, Keycloak, "Использует Keycloak для аутентификации [HTTPS]")
+
+' Внутренние взаимодействия
+Rel(ClientPortal, PaymentService, "Использует платежный шлюз для оплаты услуг [HTTPS/JSON]")
+Rel(MedicalDataService, LabIntegrationService, "Получает данные из лаборатории анализов [HTTPS/JSON]")
+
+Rel(KKM, PaymentService, "Передаёт данные о платеже в платежный шлюз [HTTPS/JSON]")
+Rel(1CAccounting, PaymentService, "Работает с данными платежей из БД 1C Бухгалтерия [HTTPS/JSON]")
+
+Rel(ClientPortal, UserService, "Работа с соглашениями и договорами [HTTPS/JSON]")
+Rel(ClientPortal, ScheduleService, "Регистрация на приём к врачу [HTTPS/JSON]")
+Rel(ClientPortal, MedicalDataService, "Просмотр своих анализов и заключений [HTTPS/JSON]")
+
+Rel(InternalPortal, UserService, "Работа с данными пользователей и контрактов [HTTPS/JSON]")
+Rel(InternalPortal, ScheduleService, "Работает с расписаниями приема пациентов [HTTPS/JSON]")
+Rel(InternalPortal, MedicalDataService, "Работа с медицинскими картами и анализами [HTTPS/JSON]")
+
+Rel(CRM, UserService, "Работа с данными клиентов [HTTPS/JSON]")
+Rel(CRM, ExchangeMailService, "Отправляет письма клиентам [HTTPS/JSON]")
+
+' Purview сканирует источники, на схеме показываю ключевые
+Rel(MicrosoftPurview, DataLake, "Сканирует и классифицирует данные озера")
+Rel(MicrosoftPurview, DataWarehouse, "Сканирует и классифицирует витрины")
+Rel(MicrosoftPurview, ExchangeMailService, "Ставит метки чувствительности и DLP")
+
+' В аналитику остальные доменные сервисы отдают данные так же, стрелки не дублирую
+Rel(UserService, PseudonymizationService, "Передаёт данные клиентов для аналитики [HTTPS/JSON]")
+Rel(MedicalDataService, PseudonymizationService, "Передаёт медицинские данные для аналитики [HTTPS/JSON]")
+Rel(PseudonymizationService, DataLake, "Пишет обезличенные данные в озеро [HTTPS]")
+Rel(DataWarehouse, DataLake, "Строит витрины на основе озера данных")
+Rel(AnalyticsNotebook, DataWarehouse, "Читает витрины для отчётов и ML [HTTPS/SQL]")
+
+' Базы - сервисы
+Rel_D(UserDatabase, UserService, "Хранит данные пользователей и контрактов")
+Rel_D(MedicalDataDatabase, MedicalDataService, "Хранит медицинские данные пациентов")
+Rel_D(ScheduleDatabase, ScheduleService, "Хранит расписания приема пациентов")
+Rel_D(PaymentDatabase, PaymentService, "Хранит данные платежей")
+Rel_D(LogsDatabase, LogsService, "Хранит логи и аудит")
+Rel_D(LabIntegrationDatabase, LabIntegrationService, "Хранит данные интеграции с лабораторией анализов")
+Rel_D(PseudonymizationDatabase, PseudonymizationService, "Хранит соответствие токенов")
+
+Rel_D(1CAccounting, 1CAccountingDb, "Хранит данные бухгалтерской системы учёта")
+Rel_D(1CInventory, 1CInventoryDb, "Хранит данные складской системы учёта")
+
+Rel_D(CRM, CrmDatabase, "Хранит данные CRM")
+
+@enduml
